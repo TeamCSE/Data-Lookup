@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CSV File Data Lookup Tool</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --border: #e2e8f0; --accent: #f59e0b; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); padding: 20px; margin: 0; }
+        .container { max-width: 1400px; margin: auto; }
+        
+        /* Header & Controls */
+        .header { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border); position: relative; }
+        .controls { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        
+        textarea { padding: 12px; border: 2px solid var(--border); border-radius: 8px; min-height: 80px; font-family: monospace; resize: vertical; }
+        
+        #searchBtn { padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        #searchBtn:hover { background: #1d4ed8; }
+
+        /* Progress Bar */
+        #progressContainer { display: none; margin-top: 15px; background: #eee; border-radius: 10px; overflow: hidden; height: 12px; }
+        #progressBar { width: 0%; height: 100%; background: var(--primary); transition: width 0.1s; }
+
+        /* Help Button & Modal */
+        .help-btn { position: absolute; top: 20px; right: 20px; background: var(--accent); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; backdrop-filter: blur(3px); }
+        .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 12px; width: 500px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal h3 { margin-top: 0; color: var(--primary); }
+        .modal ol { padding-left: 20px; line-height: 1.6; }
+        .close-modal { margin-top: 20px; background: #64748b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; }
+
+        /* Table */
+        .table-wrapper { background: white; border-radius: 8px; border: 1px solid var(--border); overflow: auto; max-height: 600px; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background: #f8fafc; padding: 12px; text-align: left; border-bottom: 2px solid var(--border); position: sticky; top: 0; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+        tr:hover { background: #f1f7ff; }
+        
+        .status-msg { font-size: 0.85rem; color: #64748b; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="modalOverlay" class="modal-overlay">
+        <div class="modal">
+            <h3>📖 User Instructions</h3>
+            <p>To process large files (1GB+) without memory errors, please follow these steps:</p>
+            <ol>
+                <li><b>Convert to CSV:</b> Open your Excel file, go to <i>File > Save As</i> and select <b>CSV (Comma Delimited)</b>.</li>
+                <li><b>Select File:</b> Click "Choose File" and pick the .csv version.</li>
+                <li><b>Enter Keywords:</b> Paste your codes into the box. You can separate them with spaces, commas, or new lines.</li>
+                <li><b>Run Search:</b> Click "Run Search". The system will read the file line-by-line to save your RAM.</li>
+				<br>
+				<div><b style="color: red;">Note:</b> 
+				<span style="color: red;">For efficient and faster data search, i suggest to edit the CSV file and leave only the following column: <b>Session ID, Transaction ID, Skill Name</b>
+				</span>
+				</div>
+            </ol>
+            <button class="close-modal" onclick="toggleHelp()">Got it!</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <button class="help-btn" onclick="toggleHelp()">❔ Help & Instructions</button>
+        <h2 style="margin:0 0 10px 0;">📦CSV File Data Lookup Tool</h2>
+        
+        <div class="controls">
+            <div class="input-group">
+                <label>1. Select CSV File</label>
+                <input type="file" id="fileInput" accept=".csv">
+            </div>
+            <div class="input-group">
+                <label>2. Paste Keywords (Any matching row will show)</label>
+                <textarea id="searchInput" placeholder="Paste codes here (e.g. UA741T... UA7BT...)"></textarea>
+                <button id="searchBtn">Run Search Across File</button>
+            </div>
+        </div>
+
+        <div id="progressContainer"><div id="progressBar"></div></div>
+        <div id="status" class="status-msg">Ready.</div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead><tr id="tableHead"></tr></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function toggleHelp() {
+        const modal = document.getElementById('modalOverlay');
+        modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+    }
+
+    const fileInput = document.getElementById('fileInput');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const tableBody = document.getElementById('tableBody');
+    const tableHead = document.getElementById('tableHead');
+    const progressBar = document.getElementById('progressBar');
+    const progressContainer = document.getElementById('progressContainer');
+    const status = document.getElementById('status');
+
+    searchBtn.onclick = async () => {
+        const file = fileInput.files[0];
+        const terms = searchInput.value.toLowerCase().trim().split(/[\s,]+/).filter(t => t);
+        
+        if (!file) return alert("Please select a CSV file first.");
+        if (terms.length === 0) return alert("Please enter keywords.");
+
+        // Clear UI for fresh search
+        tableBody.innerHTML = "";
+        tableHead.innerHTML = "";
+        progressContainer.style.display = "block";
+        status.innerText = "Scanning file on disk...";
+
+        const stream = file.stream();
+        const reader = stream.getReader();
+        const decoder = new TextDecoder();
+        
+        let headers = [];
+        let partialLine = "";
+        let rowCount = 0;
+        let matchCount = 0;
+        let fileProcessed = 0;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            fileProcessed += value.length;
+            const percent = ((fileProcessed / file.size) * 100).toFixed(1);
+            progressBar.style.width = percent + "%";
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = (partialLine + chunk).split(/\r?\n/);
+            partialLine = lines.pop(); 
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+
+                if (rowCount === 0) {
+                    // Initialize Headers
+                    headers = line.split(',').map(h => h.trim());
+                    tableHead.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+                } else {
+                    const lowerLine = line.toLowerCase();
+                    // "OR" Logic - check if at least one term is in the line
+                    if (terms.some(t => lowerLine.includes(t))) {
+                        const cells = line.split(',');
+                        const rowHtml = `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+                        tableBody.insertAdjacentHTML('beforeend', rowHtml);
+                        matchCount++;
+                    }
+                }
+                rowCount++;
+            }
+        }
+        
+        status.innerText = `Search Complete! Found ${matchCount} matching rows out of ${rowCount.toLocaleString()}.`;
+        progressContainer.style.display = "none";
+    };
+</script>
+</body>
+</html>
