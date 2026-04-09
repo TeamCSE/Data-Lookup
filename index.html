@@ -2,47 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CDR Lookup</title>
+    <title>CDR Lookup - Sorted Output</title>
     <style>
         :root { --primary: #2563eb; --bg: #f8fafc; --border: #e2e8f0; --accent: #f59e0b; --success: #22c55e; }
         body { font-family: system-ui, sans-serif; background: var(--bg); padding: 20px; margin: 0; }
         .container { max-width: 1400px; margin: auto; }
-        
-        /* Header & Controls */
         .header { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border); position: relative; }
         .controls { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
         .input-group { display: flex; flex-direction: column; gap: 8px; }
-        
         textarea { padding: 12px; border: 2px solid var(--border); border-radius: 8px; min-height: 80px; font-family: monospace; resize: vertical; outline: none; }
         textarea:focus { border-color: var(--primary); }
-        
-        /* Minimalist Indicator */
         .status-dot-container { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; margin-top: 4px; color: #64748b; }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; transition: background 0.3s; }
         .dot.active { background: var(--success); box-shadow: 0 0 8px var(--success); }
         .ready-text { color: var(--success); display: none; }
-
         #searchBtn { padding: 12px; background: #94a3b8; color: white; border: none; border-radius: 6px; cursor: not-allowed; font-weight: bold; transition: all 0.3s; }
         #searchBtn.ready { background: var(--primary); cursor: pointer; }
-        #searchBtn.ready:hover { background: #1d4ed8; }
-
-        /* Progress Bar */
         #progressContainer { display: none; margin-top: 15px; background: #eee; border-radius: 10px; overflow: hidden; height: 8px; }
         #progressBar { width: 0%; height: 100%; background: var(--primary); transition: width 0.1s; }
-
-        /* Help Modal */
-        .help-btn { position: absolute; top: 20px; right: 20px; background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; backdrop-filter: blur(3px); }
-        .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 12px; width: 450px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .close-modal { margin-top: 20px; background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; }
-
-        /* Table */
         .table-wrapper { background: white; border-radius: 8px; border: 1px solid var(--border); overflow: auto; max-height: 600px; margin-top: 20px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th { background: #f8fafc; padding: 12px; text-align: left; border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 5; }
         td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
-        
         .status-msg { font-size: 0.8rem; color: #64748b; margin-top: 10px; }
+        .help-btn { position: absolute; top: 20px; right: 20px; background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; backdrop-filter: blur(3px); }
+        .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 12px; width: 450px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .close-modal { margin-top: 20px; background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; }
     </style>
 </head>
 <body>
@@ -51,26 +37,19 @@
     <div id="modalOverlay" class="modal-overlay">
         <div class="modal">
             <h3>📖 User Instructions</h3>
-            <b><center><p>Use this tool to filter and analyze data<br>from your LiveVox Call Detail Record (CDR) files.</center>Please follow these steps below:</p></b>
+            <p><b>This version strictly sorts the output based on the order of keywords you paste.</b></p>
             <ol>
-                <li><b>Convert to CSV:</b> Open your Excel file, go to <i>File > Save As</i> and select <b>CSV (Comma Delimited)</b>.</li>
-                <li><b>Select File:</b> Click "Choose File" and pick the .csv version.</li>
-                <li><b>Enter Keywords:</b> Paste your codes into the box. You can separate them with spaces, commas, or new lines.</li>
-                <li><b>Run Search:</b> Click "Run Search". The system will read the file and output rows <b>sorted by your keyword list order</b>.</li>
-				<br>
-				<div><b style="color: red;">Note:</b>
-				<span style="color: red;">(For faster searches)<br> Keep only <b>Session ID and Transaction ID</b> in the CSV file. <br>Ensure <b>Transaction ID is formatted as a Number with NO decimal places</b>.
-				</span>
-				</div>
+                <li>Select your <b>CSV</b> file.</li>
+                <li>Paste your IDs/Keywords (one per line, or space-separated).</li>
+                <li>The tool will scan the file and then rebuild the table to match your input order.</li>
             </ol>
             <button class="close-modal" onclick="toggleHelp()">Got it!</button>
         </div>
     </div>
 
     <div class="header">
-        <button class="help-btn" onclick="toggleHelp()">❔ Help & Instructions</button>
-        <h2 style="margin:0 0 15px 0; font-size: 1.25rem;">📦CDR Data Lookup Tool</h2>
-        
+        <button class="help-btn" onclick="toggleHelp()">❔ Help</button>
+        <h2 style="margin:0 0 15px 0; font-size: 1.25rem;">📦 CDR Data Lookup (Ordered)</h2>
         <div class="controls">
             <div class="input-group">
                 <label style="font-size: 0.8rem; font-weight: 600; color: #64748b;">1. Select CSV File</label>
@@ -82,12 +61,11 @@
                 </div>
             </div>
             <div class="input-group">
-                <label style="font-size: 0.8rem; font-weight: 600; color: #64748b;">2. Paste Keywords (Output will follow this order)</label>
-                <textarea id="searchInput" placeholder="Paste keyword here (e.g. Session ID, Phone Num, Transaction ID...)"></textarea>
+                <label style="font-size: 0.8rem; font-weight: 600; color: #64748b;">2. Paste Keywords (Ordered List)</label>
+                <textarea id="searchInput" placeholder="Paste Session IDs or Transaction IDs here..."></textarea>
                 <button id="searchBtn" disabled>Run Search</button>
             </div>
         </div>
-
         <div id="progressContainer"><div id="progressBar"></div></div>
         <div id="status" class="status-msg">System Idle.</div>
     </div>
@@ -127,40 +105,37 @@
             searchBtn.disabled = false;
             searchBtn.className = "ready";
             status.innerText = `Ready to scan: ${file.name}`;
-        } else {
-            statusDot.className = "dot";
-            statusLabel.style.display = "inline";
-            readyLabel.style.display = "none";
-            searchBtn.disabled = true;
-            searchBtn.className = "";
         }
     };
 
     searchBtn.onclick = async () => {
         const file = fileInput.files[0];
-        // Maintain order by keeping terms in their original array position
-        const terms = searchInput.value.toLowerCase().trim().split(/[\s,]+/).filter(t => t);
+        // Clean up keywords and keep them in their specific array order
+        const originalTerms = searchInput.value.trim().split(/[\s,]+/).filter(t => t);
+        const lowerTerms = originalTerms.map(t => t.toLowerCase());
         
-        if (!file || terms.length === 0) return;
+        if (!file || originalTerms.length === 0) return;
 
+        // Reset UI
         tableBody.innerHTML = "";
         tableHead.innerHTML = "";
         progressContainer.style.display = "block";
-        status.innerText = "Scanning and sorting data...";
+        status.innerText = "Scanning file (Phase 1: Finding data)...";
+
+        // Initialize a Map to hold matches for each specific keyword
+        const resultsMap = new Map();
+        originalTerms.forEach(term => resultsMap.set(term.toLowerCase(), []));
 
         const stream = file.stream();
         const reader = stream.getReader();
         const decoder = new TextDecoder();
         
-        let headers = [];
         let partialLine = "";
         let rowCount = 0;
         let fileProcessed = 0;
+        let headers = "";
 
-        // Use a Map to store results by keyword to keep track of sorting
-        const resultsMap = new Map();
-        terms.forEach(term => resultsMap.set(term, []));
-
+        // PHASE 1: Scan file and collect matches into the Map
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -177,12 +152,11 @@
                 if (!line.trim()) continue;
 
                 if (rowCount === 0) {
-                    headers = line.split(',').map(h => h.trim());
-                    tableHead.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+                    headers = line;
                 } else {
                     const lowerLine = line.toLowerCase();
-                    // Check which specific term matches this line and store it
-                    terms.forEach(term => {
+                    // Check every keyword against this line
+                    lowerTerms.forEach(term => {
                         if (lowerLine.includes(term)) {
                             resultsMap.get(term).push(line);
                         }
@@ -192,19 +166,27 @@
             }
         }
 
-        // Render based on Keyword Order
+        // PHASE 2: Render table headers
+        if (headers) {
+            const headerCols = headers.split(',').map(h => h.trim());
+            tableHead.innerHTML = headerCols.map(h => `<th>${h}</th>`).join('');
+        }
+
+        // PHASE 3: Build table body following the EXACT order of input keywords
+        status.innerText = "Finalizing sort and rendering table...";
         let matchCount = 0;
-        terms.forEach(term => {
-            const matches = resultsMap.get(term);
-            matches.forEach(line => {
-                const cells = line.split(',');
+        
+        originalTerms.forEach(term => {
+            const matches = resultsMap.get(term.toLowerCase());
+            matches.forEach(rowData => {
+                const cells = rowData.split(',');
                 const rowHtml = `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
                 tableBody.insertAdjacentHTML('beforeend', rowHtml);
                 matchCount++;
             });
         });
 
-        status.innerText = `Scan complete. Found ${matchCount} matches sorted by keywords.`;
+        status.innerText = `Success! Found ${matchCount} matches, sorted by your keyword list.`;
         progressContainer.style.display = "none";
     };
 </script>
